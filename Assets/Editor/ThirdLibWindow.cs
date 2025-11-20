@@ -146,8 +146,54 @@ namespace GameDevToi.ThirdLib
                 SerializedProperty androidAppId = serializedConfig.FindProperty("googleAdMobAndroidAppId");
                 SerializedProperty iosAppId = serializedConfig.FindProperty("googleAdMobIOSAppId");
 
+                EditorGUI.BeginChangeCheck();
                 EditorGUILayout.PropertyField(androidAppId, new GUIContent("Android App ID"));
                 EditorGUILayout.PropertyField(iosAppId, new GUIContent("iOS App ID"));
+
+                // Khi App ID thay đổi, cập nhật vào GoogleMobileAdsSettings
+                if (EditorGUI.EndChangeCheck())
+                {
+                    serializedConfig.ApplyModifiedProperties();
+
+                    // Cập nhật GoogleMobileAdsSettings (nếu SDK đã import)
+                    try
+                    {
+                        // Tìm type trong tất cả assemblies
+                        var googleMobileAdsSettingsType = System.AppDomain.CurrentDomain.GetAssemblies()
+                            .SelectMany(a => a.GetTypes())
+                            .FirstOrDefault(t => t.Name == "GoogleMobileAdsSettings");
+
+                        if (googleMobileAdsSettingsType != null)
+                        {
+                            // LoadInstance() là internal, cần NonPublic flag
+                            var loadInstanceMethod = googleMobileAdsSettingsType.GetMethod("LoadInstance",
+                                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                            if (loadInstanceMethod != null)
+                            {
+                                var googleMobileAdsSettings = loadInstanceMethod.Invoke(null, null);
+                                if (googleMobileAdsSettings != null)
+                                {
+                                    var androidAppIdProperty = googleMobileAdsSettingsType.GetProperty("GoogleMobileAdsAndroidAppId");
+                                    var iosAppIdProperty = googleMobileAdsSettingsType.GetProperty("GoogleMobileAdsIOSAppId");
+
+                                    if (androidAppIdProperty != null && iosAppIdProperty != null)
+                                    {
+                                        androidAppIdProperty.SetValue(googleMobileAdsSettings, config.googleAdMobAndroidAppId);
+                                        iosAppIdProperty.SetValue(googleMobileAdsSettings, config.googleAdMobIOSAppId);
+
+                                        EditorUtility.SetDirty((UnityEngine.Object)googleMobileAdsSettings);
+                                        AssetDatabase.SaveAssets();
+                                        Debug.Log($"[3rdLib] Updated Google Mobile Ads App IDs");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch (System.Exception ex)
+                    {
+                        Debug.LogWarning($"[3rdLib] Could not update GoogleMobileAdsSettings: {ex.Message}");
+                    }
+                }
             });
 
             EditorGUILayout.Space();
@@ -177,13 +223,41 @@ namespace GameDevToi.ThirdLib
                 {
                     serializedConfig.ApplyModifiedProperties();
 
-                    // Cập nhật AppLovinSettings ScriptableObject
-                    var appLovinSettings = AppLovinSettings.Instance;
-                    if (appLovinSettings != null)
+                    // Cập nhật AppLovinSettings ScriptableObject (nếu SDK đã import)
+                    try
                     {
-                        appLovinSettings.SdkKey = config.appLovinSdkKey;
-                        appLovinSettings.SaveAsync();
-                        Debug.Log($"[3rdLib] Updated AppLovin SDK Key: {config.appLovinSdkKey}");
+                        // Tìm type trong tất cả assemblies
+                        var appLovinSettingsType = System.AppDomain.CurrentDomain.GetAssemblies()
+                            .SelectMany(a => a.GetTypes())
+                            .FirstOrDefault(t => t.Name == "AppLovinSettings");
+
+                        if (appLovinSettingsType != null)
+                        {
+                            var instanceProperty = appLovinSettingsType.GetProperty("Instance", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                            if (instanceProperty != null)
+                            {
+                                var appLovinSettings = instanceProperty.GetValue(null);
+                                if (appLovinSettings != null)
+                                {
+                                    var sdkKeyProperty = appLovinSettingsType.GetProperty("SdkKey");
+                                    if (sdkKeyProperty != null)
+                                    {
+                                        sdkKeyProperty.SetValue(appLovinSettings, config.appLovinSdkKey);
+
+                                        var saveMethod = appLovinSettingsType.GetMethod("SaveAsync");
+                                        if (saveMethod != null)
+                                        {
+                                            saveMethod.Invoke(appLovinSettings, null);
+                                            Debug.Log($"[3rdLib] Updated AppLovin SDK Key: {config.appLovinSdkKey}");
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch (System.Exception ex)
+                    {
+                        Debug.LogWarning($"[3rdLib] Could not update AppLovinSettings: {ex.Message}");
                     }
                 }
             });

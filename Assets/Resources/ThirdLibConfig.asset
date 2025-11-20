@@ -15,11 +15,11 @@ MonoBehaviour:
   androidPackageName: com.company.game
   appVersion: 1.0.0
   versionCode: 1
-  googleAdMobAndroidAppId: ca-app-pub-1234345345
-  googleAdMobIOSAppId: ca-app-pub-123123456456456
+  googleAdMobAndroidAppId: "ca-app-pub-1234345345\xE1das\xE1dasd"
+  googleAdMobIOSAppId: "\xE1dadasdasd123sdasdasd"
   facebookAppId: 
   facebookClientToken: 
-  appLovinSdkKey: "\xE1dasdasd123123"
+  appLovinSdkKey: "23123123qweqwqwdqwdqwd\xE1dasd\xE1dasd"
   ironSourceAppKey: 
   adUnits:
   - name: AdMob Banner

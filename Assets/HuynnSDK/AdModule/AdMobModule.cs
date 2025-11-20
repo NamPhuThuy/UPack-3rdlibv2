@@ -3,10 +3,14 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using GameDevToi.ThirdLib.Core;
+
+#if ADMOB
 using GoogleMobileAds.Api;
+#endif
 
 namespace GameDevToi.ThirdLib.AdModule
 {
+#if ADMOB
     /// <summary>
     /// Module cho Google AdMob với full implementation
     /// </summary>
@@ -633,4 +637,34 @@ namespace GameDevToi.ThirdLib.AdModule
         }
         #endregion
     }
+#else
+    /// <summary>
+    /// Stub implementation when Google Mobile Ads SDK is not imported
+    /// </summary>
+    public class AdMobModule : BaseAdNetworkModule
+    {
+        public override string NetworkId => "admob";
+
+        public override void Initialize(ThirdLibConfig config)
+        {
+            base.Initialize(config);
+            LogError("Google Mobile Ads SDK is not installed. Please import the SDK to use AdMob.");
+        }
+
+        public override void LoadAdUnit(AdUnit adUnit)
+        {
+            LogError("Google Mobile Ads SDK is not installed.");
+        }
+
+        public override void ShowAd(string formatId, string placementId = null)
+        {
+            LogError("Google Mobile Ads SDK is not installed.");
+        }
+
+        public override bool IsAdReady(string formatId, string placementId = null)
+        {
+            return false;
+        }
+    }
+#endif
 }

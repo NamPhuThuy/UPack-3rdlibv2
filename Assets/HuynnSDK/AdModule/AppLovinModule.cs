@@ -4,6 +4,7 @@ using GameDevToi.ThirdLib.Core;
 
 namespace GameDevToi.ThirdLib.AdModule
 {
+#if APPLOVIN_MAX
     /// <summary>
     /// Module cho AppLovin MAX với full implementation
     /// </summary>
@@ -362,4 +363,34 @@ namespace GameDevToi.ThirdLib.AdModule
 
         #endregion
     }
+#else
+    /// <summary>
+    /// Stub implementation when AppLovin MAX SDK is not imported
+    /// </summary>
+    public class AppLovinModule : BaseAdNetworkModule
+    {
+        public override string NetworkId => "applovin";
+
+        public override void Initialize(ThirdLibConfig config)
+        {
+            base.Initialize(config);
+            LogError("AppLovin MAX SDK is not installed. Please import the SDK to use AppLovin.");
+        }
+
+        public override void LoadAdUnit(AdUnit adUnit)
+        {
+            LogError("AppLovin MAX SDK is not installed.");
+        }
+
+        public override void ShowAd(string formatId, string placementId = null)
+        {
+            LogError("AppLovin MAX SDK is not installed.");
+        }
+
+        public override bool IsAdReady(string formatId, string placementId = null)
+        {
+            return false;
+        }
+    }
+#endif
 }
