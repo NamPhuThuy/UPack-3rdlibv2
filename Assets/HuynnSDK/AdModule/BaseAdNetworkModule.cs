@@ -37,6 +37,16 @@ namespace GameDevToi.ThirdLib.AdModule
             LogInfo($"Destroying {formatName} ad");
         }
 
+        public virtual void HideBanner()
+        {
+            LogWarning("HideBanner not implemented for this network");
+        }
+
+        public virtual void ShowBanner()
+        {
+            LogWarning("ShowBanner not implemented for this network");
+        }
+
         protected void LogInfo(string message)
         {
             var networkDef = AdRegistry.GetNetwork(NetworkId);

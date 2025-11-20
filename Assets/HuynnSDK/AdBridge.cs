@@ -309,6 +309,60 @@ namespace GameDevToi.ThirdLib
         }
 
         /// <summary>
+        /// Ẩn banner (chỉ áp dụng cho banner ads)
+        /// </summary>
+        public void HideBanner()
+        {
+            if (!isInitialized)
+            {
+                Debug.LogWarning("[AdBridge] Not initialized yet");
+                return;
+            }
+
+            // Tìm network đang hiển thị banner
+            var bannerUnits = config.GetActiveAdUnits("banner");
+            if (bannerUnits.Count > 0)
+            {
+                var networkId = bannerUnits[0].networkId;
+                if (adModules.ContainsKey(networkId))
+                {
+                    adModules[networkId].HideBanner();
+                }
+            }
+            else
+            {
+                Debug.LogWarning("[AdBridge] No active banner ad units found");
+            }
+        }
+
+        /// <summary>
+        /// Hiện banner (chỉ áp dụng cho banner ads)
+        /// </summary>
+        public void ShowBanner()
+        {
+            if (!isInitialized)
+            {
+                Debug.LogWarning("[AdBridge] Not initialized yet");
+                return;
+            }
+
+            // Tìm network đang hiển thị banner
+            var bannerUnits = config.GetActiveAdUnits("banner");
+            if (bannerUnits.Count > 0)
+            {
+                var networkId = bannerUnits[0].networkId;
+                if (adModules.ContainsKey(networkId))
+                {
+                    adModules[networkId].ShowBanner();
+                }
+            }
+            else
+            {
+                Debug.LogWarning("[AdBridge] No active banner ad units found");
+            }
+        }
+
+        /// <summary>
         /// Lấy thông tin debug
         /// </summary>
         public string GetDebugInfo()

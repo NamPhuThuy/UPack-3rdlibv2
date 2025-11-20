@@ -42,5 +42,15 @@ namespace GameDevToi.ThirdLib.AdModule
         /// Hủy quảng cáo
         /// </summary>
         void DestroyAd(string formatId);
+
+        /// <summary>
+        /// Ẩn banner (chỉ áp dụng cho banner ads)
+        /// </summary>
+        void HideBanner();
+
+        /// <summary>
+        /// Hiện banner (chỉ áp dụng cho banner ads)
+        /// </summary>
+        void ShowBanner();
     }
 }

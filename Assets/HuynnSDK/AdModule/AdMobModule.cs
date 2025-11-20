@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 using GameDevToi.ThirdLib.Core;
 using GoogleMobileAds.Api;
@@ -5,11 +7,21 @@ using GoogleMobileAds.Api;
 namespace GameDevToi.ThirdLib.AdModule
 {
     /// <summary>
-    /// Module cho Google AdMob
+    /// Module cho Google AdMob với full implementation
     /// </summary>
     public class AdMobModule : BaseAdNetworkModule
     {
         public override string NetworkId => "admob";
+
+        // Dictionary to store loaded ads by format ID
+        private Dictionary<string, BannerView> bannerAds = new Dictionary<string, BannerView>();
+        private Dictionary<string, InterstitialAd> interstitialAds = new Dictionary<string, InterstitialAd>();
+        private Dictionary<string, RewardedAd> rewardedAds = new Dictionary<string, RewardedAd>();
+        private Dictionary<string, AppOpenAd> appOpenAds = new Dictionary<string, AppOpenAd>();
+        private Dictionary<string, RewardedInterstitialAd> rewardedInterstitialAds = new Dictionary<string, RewardedInterstitialAd>();
+
+        // Track which ads are currently loaded
+        private HashSet<string> loadedAds = new HashSet<string>();
 
         public override void Initialize(ThirdLibConfig config)
         {
@@ -23,13 +35,20 @@ namespace GameDevToi.ThirdLib.AdModule
                 return;
             }
 
+            LogInfo($"AdMob initializing with App ID: {appId}");
+
             MobileAds.Initialize(initStatus =>
             {
                 isInitialized = true;
                 LogInfo("AdMob initialized successfully");
-            });
 
-            LogInfo($"AdMob initializing with App ID: {appId}");
+                // Log adapter status
+                var adapterStatus = initStatus.getAdapterStatusMap();
+                foreach (var adapter in adapterStatus)
+                {
+                    Debug.Log($"AdMob Adapter: {adapter.Key} - {adapter.Value.InitializationState}");
+                }
+            });
         }
 
         public override void LoadAdUnit(AdUnit adUnit)
@@ -65,51 +84,486 @@ namespace GameDevToi.ThirdLib.AdModule
 
             var formatDef = AdRegistry.GetFormat(formatId);
             string formatName = formatDef?.displayName ?? formatId;
+
+            if (!IsAdReady(formatId, placementId))
+            {
+                LogWarning($"{formatName} ad is not ready to show");
+                return;
+            }
+
             LogInfo($"Showing {formatName} ad");
-            // TODO: Implement show ad logic
+
+            try
+            {
+                if (formatId == "banner")
+                {
+                    ShowBanner();
+                }
+                else if (formatId == "interstitial")
+                {
+                    if (interstitialAds.ContainsKey(formatId) && interstitialAds[formatId].CanShowAd())
+                    {
+                        interstitialAds[formatId].Show();
+                    }
+                }
+                else if (formatId == "rewarded")
+                {
+                    if (rewardedAds.ContainsKey(formatId) && rewardedAds[formatId].CanShowAd())
+                    {
+                        rewardedAds[formatId].Show((Reward reward) =>
+                        {
+                            LogInfo($"Rewarded ad granted reward: {reward.Type} - {reward.Amount}");
+                        });
+                    }
+                }
+                else if (formatId == "appopen")
+                {
+                    if (appOpenAds.ContainsKey(formatId) && appOpenAds[formatId].CanShowAd())
+                    {
+                        appOpenAds[formatId].Show();
+                    }
+                }
+                else if (formatId == "rewarded_interstitial")
+                {
+                    if (rewardedInterstitialAds.ContainsKey(formatId) && rewardedInterstitialAds[formatId].CanShowAd())
+                    {
+                        rewardedInterstitialAds[formatId].Show((Reward reward) =>
+                        {
+                            LogInfo($"Rewarded interstitial granted reward: {reward.Type} - {reward.Amount}");
+                        });
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                LogError($"Error showing {formatName} ad: {e.Message}");
+            }
         }
 
         public override bool IsAdReady(string formatId, string placementId = null)
         {
             if (!isInitialized) return false;
 
-            // TODO: Implement ad ready check
+            try
+            {
+                if (formatId == "banner")
+                {
+                    return bannerAds.ContainsKey(formatId);
+                }
+                else if (formatId == "interstitial")
+                {
+                    return interstitialAds.ContainsKey(formatId) && interstitialAds[formatId].CanShowAd();
+                }
+                else if (formatId == "rewarded")
+                {
+                    return rewardedAds.ContainsKey(formatId) && rewardedAds[formatId].CanShowAd();
+                }
+                else if (formatId == "appopen")
+                {
+                    return appOpenAds.ContainsKey(formatId) && appOpenAds[formatId].CanShowAd();
+                }
+                else if (formatId == "rewarded_interstitial")
+                {
+                    return rewardedInterstitialAds.ContainsKey(formatId) && rewardedInterstitialAds[formatId].CanShowAd();
+                }
+            }
+            catch (Exception e)
+            {
+                LogError($"Error checking ad ready status: {e.Message}");
+            }
+
             return false;
         }
+
+        public override void DestroyAd(string formatId)
+        {
+            try
+            {
+                if (formatId == "banner" && bannerAds.ContainsKey(formatId))
+                {
+                    bannerAds[formatId].Destroy();
+                    bannerAds.Remove(formatId);
+                    LogInfo("Banner ad destroyed");
+                }
+                else if (formatId == "interstitial" && interstitialAds.ContainsKey(formatId))
+                {
+                    interstitialAds[formatId].Destroy();
+                    interstitialAds.Remove(formatId);
+                    LogInfo("Interstitial ad destroyed");
+                }
+                else if (formatId == "rewarded" && rewardedAds.ContainsKey(formatId))
+                {
+                    rewardedAds[formatId].Destroy();
+                    rewardedAds.Remove(formatId);
+                    LogInfo("Rewarded ad destroyed");
+                }
+                else if (formatId == "appopen" && appOpenAds.ContainsKey(formatId))
+                {
+                    appOpenAds[formatId].Destroy();
+                    appOpenAds.Remove(formatId);
+                    LogInfo("App Open ad destroyed");
+                }
+                else if (formatId == "rewarded_interstitial" && rewardedInterstitialAds.ContainsKey(formatId))
+                {
+                    rewardedInterstitialAds[formatId].Destroy();
+                    rewardedInterstitialAds.Remove(formatId);
+                    LogInfo("Rewarded Interstitial ad destroyed");
+                }
+
+                loadedAds.Remove(formatId);
+            }
+            catch (Exception e)
+            {
+                LogError($"Error destroying ad: {e.Message}");
+            }
+        }
+
+        #region Banner Ad Implementation
         private void LoadBanner(string adUnitId)
         {
             LogInfo($"Loading Banner: {adUnitId}");
-            // TODO: Implement banner loading
-        }
 
+            // Destroy existing banner if any
+            if (bannerAds.ContainsKey("banner"))
+            {
+                bannerAds["banner"].Destroy();
+            }
+
+            // Create banner ad
+            BannerView bannerView = new BannerView(adUnitId, AdSize.Banner, AdPosition.Bottom);
+
+            // Register event handlers
+            bannerView.OnBannerAdLoaded += () =>
+            {
+                LogInfo("Banner ad loaded successfully");
+                loadedAds.Add("banner");
+            };
+
+            bannerView.OnBannerAdLoadFailed += (LoadAdError error) =>
+            {
+                LogError($"Banner ad failed to load: {error.GetMessage()}");
+                loadedAds.Remove("banner");
+            };
+
+            bannerView.OnAdPaid += (AdValue adValue) =>
+            {
+                LogInfo($"Banner ad paid: {adValue.Value} {adValue.CurrencyCode}");
+            };
+
+            bannerView.OnAdClicked += () =>
+            {
+                LogInfo("Banner ad clicked");
+            };
+
+            // Store reference
+            bannerAds["banner"] = bannerView;
+
+            // Load the banner ad
+            AdRequest request = new AdRequest();
+            bannerView.LoadAd(request);
+        }
+        #endregion
+
+        #region Interstitial Ad Implementation
         private void LoadInterstitial(string adUnitId)
         {
             LogInfo($"Loading Interstitial: {adUnitId}");
-            // TODO: Implement interstitial loading
-        }
 
+            // Clean up old ad if exists
+            if (interstitialAds.ContainsKey("interstitial"))
+            {
+                interstitialAds["interstitial"].Destroy();
+                interstitialAds.Remove("interstitial");
+            }
+
+            AdRequest request = new AdRequest();
+
+            InterstitialAd.Load(adUnitId, request, (InterstitialAd ad, LoadAdError error) =>
+            {
+                if (error != null || ad == null)
+                {
+                    LogError($"Interstitial ad failed to load: {error?.GetMessage()}");
+                    loadedAds.Remove("interstitial");
+                    return;
+                }
+
+                LogInfo("Interstitial ad loaded successfully");
+                interstitialAds["interstitial"] = ad;
+                loadedAds.Add("interstitial");
+
+                // Register event handlers
+                ad.OnAdPaid += (AdValue adValue) =>
+                {
+                    LogInfo($"Interstitial ad paid: {adValue.Value} {adValue.CurrencyCode}");
+                };
+
+                ad.OnAdImpressionRecorded += () =>
+                {
+                    LogInfo("Interstitial ad impression recorded");
+                };
+
+                ad.OnAdClicked += () =>
+                {
+                    LogInfo("Interstitial ad clicked");
+                };
+
+                ad.OnAdFullScreenContentOpened += () =>
+                {
+                    LogInfo("Interstitial ad opened");
+                };
+
+                ad.OnAdFullScreenContentClosed += () =>
+                {
+                    LogInfo("Interstitial ad closed");
+                    // Auto reload
+                    LoadInterstitial(adUnitId);
+                };
+
+                ad.OnAdFullScreenContentFailed += (AdError error) =>
+                {
+                    LogError($"Interstitial ad failed to show: {error.GetMessage()}");
+                    loadedAds.Remove("interstitial");
+                    // Auto reload
+                    LoadInterstitial(adUnitId);
+                };
+            });
+        }
+        #endregion
+
+        #region Rewarded Ad Implementation
         private void LoadRewarded(string adUnitId)
         {
             LogInfo($"Loading Rewarded: {adUnitId}");
-            // TODO: Implement rewarded loading
-        }
 
+            // Clean up old ad if exists
+            if (rewardedAds.ContainsKey("rewarded"))
+            {
+                rewardedAds["rewarded"].Destroy();
+                rewardedAds.Remove("rewarded");
+            }
+
+            AdRequest request = new AdRequest();
+
+            RewardedAd.Load(adUnitId, request, (RewardedAd ad, LoadAdError error) =>
+            {
+                if (error != null || ad == null)
+                {
+                    LogError($"Rewarded ad failed to load: {error?.GetMessage()}");
+                    loadedAds.Remove("rewarded");
+                    return;
+                }
+
+                LogInfo("Rewarded ad loaded successfully");
+                rewardedAds["rewarded"] = ad;
+                loadedAds.Add("rewarded");
+
+                // Register event handlers
+                ad.OnAdPaid += (AdValue adValue) =>
+                {
+                    LogInfo($"Rewarded ad paid: {adValue.Value} {adValue.CurrencyCode}");
+                };
+
+                ad.OnAdImpressionRecorded += () =>
+                {
+                    LogInfo("Rewarded ad impression recorded");
+                };
+
+                ad.OnAdClicked += () =>
+                {
+                    LogInfo("Rewarded ad clicked");
+                };
+
+                ad.OnAdFullScreenContentOpened += () =>
+                {
+                    LogInfo("Rewarded ad opened");
+                };
+
+                ad.OnAdFullScreenContentClosed += () =>
+                {
+                    LogInfo("Rewarded ad closed");
+                    // Auto reload
+                    LoadRewarded(adUnitId);
+                };
+
+                ad.OnAdFullScreenContentFailed += (AdError error) =>
+                {
+                    LogError($"Rewarded ad failed to show: {error.GetMessage()}");
+                    loadedAds.Remove("rewarded");
+                    // Auto reload
+                    LoadRewarded(adUnitId);
+                };
+            });
+        }
+        #endregion
+
+        #region App Open Ad Implementation
         private void LoadAppOpen(string adUnitId)
         {
             LogInfo($"Loading App Open: {adUnitId}");
-            // TODO: Implement app open loading
-        }
 
+            // Clean up old ad if exists
+            if (appOpenAds.ContainsKey("appopen"))
+            {
+                appOpenAds["appopen"].Destroy();
+                appOpenAds.Remove("appopen");
+            }
+
+            AdRequest request = new AdRequest();
+
+            AppOpenAd.Load(adUnitId, request, (AppOpenAd ad, LoadAdError error) =>
+            {
+                if (error != null || ad == null)
+                {
+                    LogError($"App Open ad failed to load: {error?.GetMessage()}");
+                    loadedAds.Remove("appopen");
+                    return;
+                }
+
+                LogInfo("App Open ad loaded successfully");
+                appOpenAds["appopen"] = ad;
+                loadedAds.Add("appopen");
+
+                // Register event handlers
+                ad.OnAdPaid += (AdValue adValue) =>
+                {
+                    LogInfo($"App Open ad paid: {adValue.Value} {adValue.CurrencyCode}");
+                };
+
+                ad.OnAdImpressionRecorded += () =>
+                {
+                    LogInfo("App Open ad impression recorded");
+                };
+
+                ad.OnAdClicked += () =>
+                {
+                    LogInfo("App Open ad clicked");
+                };
+
+                ad.OnAdFullScreenContentOpened += () =>
+                {
+                    LogInfo("App Open ad opened");
+                };
+
+                ad.OnAdFullScreenContentClosed += () =>
+                {
+                    LogInfo("App Open ad closed");
+                    // Auto reload
+                    LoadAppOpen(adUnitId);
+                };
+
+                ad.OnAdFullScreenContentFailed += (AdError error) =>
+                {
+                    LogError($"App Open ad failed to show: {error.GetMessage()}");
+                    loadedAds.Remove("appopen");
+                    // Auto reload
+                    LoadAppOpen(adUnitId);
+                };
+            });
+        }
+        #endregion
+
+        #region Rewarded Interstitial Ad Implementation
         private void LoadRewardedInterstitial(string adUnitId)
         {
             LogInfo($"Loading Rewarded Interstitial: {adUnitId}");
-            // TODO: Implement rewarded interstitial loading
-        }
 
+            // Clean up old ad if exists
+            if (rewardedInterstitialAds.ContainsKey("rewarded_interstitial"))
+            {
+                rewardedInterstitialAds["rewarded_interstitial"].Destroy();
+                rewardedInterstitialAds.Remove("rewarded_interstitial");
+            }
+
+            AdRequest request = new AdRequest();
+
+            RewardedInterstitialAd.Load(adUnitId, request, (RewardedInterstitialAd ad, LoadAdError error) =>
+            {
+                if (error != null || ad == null)
+                {
+                    LogError($"Rewarded Interstitial ad failed to load: {error?.GetMessage()}");
+                    loadedAds.Remove("rewarded_interstitial");
+                    return;
+                }
+
+                LogInfo("Rewarded Interstitial ad loaded successfully");
+                rewardedInterstitialAds["rewarded_interstitial"] = ad;
+                loadedAds.Add("rewarded_interstitial");
+
+                // Register event handlers
+                ad.OnAdPaid += (AdValue adValue) =>
+                {
+                    LogInfo($"Rewarded Interstitial ad paid: {adValue.Value} {adValue.CurrencyCode}");
+                };
+
+                ad.OnAdImpressionRecorded += () =>
+                {
+                    LogInfo("Rewarded Interstitial ad impression recorded");
+                };
+
+                ad.OnAdClicked += () =>
+                {
+                    LogInfo("Rewarded Interstitial ad clicked");
+                };
+
+                ad.OnAdFullScreenContentOpened += () =>
+                {
+                    LogInfo("Rewarded Interstitial ad opened");
+                };
+
+                ad.OnAdFullScreenContentClosed += () =>
+                {
+                    LogInfo("Rewarded Interstitial ad closed");
+                    // Auto reload
+                    LoadRewardedInterstitial(adUnitId);
+                };
+
+                ad.OnAdFullScreenContentFailed += (AdError error) =>
+                {
+                    LogError($"Rewarded Interstitial ad failed to show: {error.GetMessage()}");
+                    loadedAds.Remove("rewarded_interstitial");
+                    // Auto reload
+                    LoadRewardedInterstitial(adUnitId);
+                };
+            });
+        }
+        #endregion
+
+        #region Native Ad Implementation
         private void LoadNative(string adUnitId)
         {
             LogInfo($"Loading Native: {adUnitId}");
-            // TODO: Implement native loading
+            LogWarning("Native ads require custom UI implementation. Please refer to AdMob documentation.");
+            // Native ads require custom UI implementation
+            // Reference: https://developers.google.com/admob/unity/native
         }
+        #endregion
+
+        #region Banner Visibility Control
+        public override void HideBanner()
+        {
+            if (bannerAds.ContainsKey("banner"))
+            {
+                bannerAds["banner"].Hide();
+                LogInfo("Banner ad hidden");
+            }
+            else
+            {
+                LogWarning("No banner ad loaded to hide");
+            }
+        }
+
+        public override void ShowBanner()
+        {
+            if (bannerAds.ContainsKey("banner"))
+            {
+                bannerAds["banner"].Show();
+                LogInfo("Banner ad shown");
+            }
+            else
+            {
+                LogWarning("No banner ad loaded to show");
+            }
+        }
+        #endregion
     }
 }
