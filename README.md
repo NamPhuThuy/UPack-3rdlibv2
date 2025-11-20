@@ -22,40 +22,40 @@
 ### 1. Core Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Unity Editor Window                       │
+┌────────────────────────────────────────────────────────────┐
+│                    Unity Editor Window                     │
 │  ┌────────────────────────────────────────────────────┐    │
 │  │  ThirdLibWindow (Menu: 3rdLib > Open Window)       │    │
 │  │  • Tab 1: SDK Config (App Info + SDK Keys)         │    │
 │  │  • Tab 2: Ad Units (CRUD management)               │    │
 │  └────────────────────────────────────────────────────┘    │
-│                           │                                  │
-│                           ▼                                  │
+│                           │                                │
+│                           ▼                                │
 │  ┌────────────────────────────────────────────────────┐    │
 │  │  ThirdLibConfig (ScriptableObject)                 │    │
 │  │  • Resources/ThirdLibConfig.asset                  │    │
 │  │  • App info + SDK keys + Ad units list             │    │
 │  └────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────┘
+└────────────────────────────────────────────────────────────┘
                               │
                               ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      Runtime System                          │
+┌────────────────────────────────────────────────────────────┐
+│                      Runtime System                        │
 │  ┌────────────────────────────────────────────────────┐    │
 │  │  AdRegistry (Dynamic Registration)                 │    │
 │  │  • Built-in: banner, interstitial, rewarded, etc.  │    │
 │  │  • Custom: RegisterFormat(), RegisterNetwork()     │    │
 │  └────────────────────────────────────────────────────┘    │
-│                           │                                  │
-│                           ▼                                  │
+│                           │                                │
+│                           ▼                                │
 │  ┌────────────────────────────────────────────────────┐    │
 │  │  AdBridge (Singleton)                              │    │
 │  │  • Dictionary<networkId, IAdNetworkModule>         │    │
 │  │  • ShowAd(formatId), IsAdReady(), etc.             │    │
 │  │  • Waterfall mediation logic                       │    │
 │  └────────────────────────────────────────────────────┘    │
-│                           │                                  │
-│                           ▼                                  │
+│                           │                                │
+│                           ▼                                │
 │  ┌────────────────────────────────────────────────────┐    │
 │  │  Ad Network Modules (IAdNetworkModule)             │    │
 │  │  • AdMobModule                                     │    │
@@ -63,22 +63,22 @@
 │  │  • IronSourceModule                                │    │
 │  │  • UnityAdsModule                                  │    │
 │  └────────────────────────────────────────────────────┘    │
-│                           │                                  │
-│                           ▼                                  │
+│                           │                                │
+│                           ▼                                │
 │  ┌────────────────────────────────────────────────────┐    │
 │  │  AdEvents (Event System)                           │    │
 │  │  • 9 event types with AdEventArgs                  │    │
 │  │  • Static events: OnAdImpression, OnAdPaid, etc.   │    │
 │  └────────────────────────────────────────────────────┘    │
-│                           │                                  │
-│                           ▼                                  │
+│                           │                                │
+│                           ▼                                │
 │  ┌────────────────────────────────────────────────────┐    │
 │  │  FirebaseBridge (Singleton)                        │    │
 │  │  • Auto-subscribe to AdEvents                      │    │
 │  │  • Log to Firebase Analytics                       │    │
 │  │  • Focus: ad_impression, ad_revenue                │    │
 │  └────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────┘
+└────────────────────────────────────────────────────────────┘
 ```
 
 ### 2. Module Flow
