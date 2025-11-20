@@ -9,7 +9,12 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+# Get the directory where the script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+cd "$SCRIPT_DIR"
+
 echo -e "${YELLOW}Starting HuynnSDK DLL build...${NC}"
+echo -e "${YELLOW}Working directory: ${SCRIPT_DIR}${NC}"
 
 # Check if Unity is installed
 UNITY_VERSION="2022.3.62f2"
