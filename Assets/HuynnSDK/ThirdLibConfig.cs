@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
+using GameDevToi.ThirdLib.Core;
 
 namespace GameDevToi.ThirdLib
 {
@@ -80,28 +81,28 @@ namespace GameDevToi.ThirdLib
         }
 
         /// <summary>
-        /// Lấy tất cả ad units theo format
+        /// Lấy tất cả ad units theo format ID
         /// </summary>
-        public List<AdUnit> GetAdUnitsByFormat(AdFormat format)
+        public List<AdUnit> GetAdUnitsByFormat(string formatId)
         {
-            return adUnits.Where(ad => ad.format == format && ad.isActive).ToList();
+            return adUnits.Where(ad => ad.formatId == formatId && ad.isActive && ad.IsValid()).ToList();
         }
 
         /// <summary>
-        /// Lấy ad unit theo format và network
+        /// Lấy ad unit theo format và network ID
         /// </summary>
-        public AdUnit GetAdUnit(AdFormat format, AdNetwork network)
+        public AdUnit GetAdUnit(string formatId, string networkId)
         {
-            return adUnits.FirstOrDefault(ad => ad.format == format && ad.network == network && ad.isActive);
+            return adUnits.FirstOrDefault(ad => ad.formatId == formatId && ad.networkId == networkId && ad.isActive && ad.IsValid());
         }
 
         /// <summary>
         /// Lấy tất cả ad units đang active theo format và sắp xếp theo priority
         /// </summary>
-        public List<AdUnit> GetActiveAdUnits(AdFormat format)
+        public List<AdUnit> GetActiveAdUnits(string formatId)
         {
             return adUnits
-                .Where(ad => ad.format == format && ad.isActive)
+                .Where(ad => ad.formatId == formatId && ad.isActive && ad.IsValid())
                 .OrderByDescending(ad => ad.priority)
                 .ToList();
         }
