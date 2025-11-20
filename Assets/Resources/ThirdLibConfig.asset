@@ -12,13 +12,29 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 937460e909a7e43fd84fa9db389d2e4d, type: 3}
   m_Name: ThirdLibConfig
   m_EditorClassIdentifier: 
-  googleAdMobAndroidAppId: ca-app-pub-xxxxxxxxxxxxxxxx~yyyyyyyyyy
-  googleAdMobIOSAppId: ca-app-pub-xxxxxxxxxxxxxxxx~yyyyyyyyyy
+  androidPackageName: com.company.game
+  appVersion: 1.0.0
+  versionCode: 1
+  googleAdMobAndroidAppId: ca-app-pub-1234345345
+  googleAdMobIOSAppId: ca-app-pub-123123456456456
   facebookAppId: 
   facebookClientToken: 
-  unityGameIdAndroid: 
-  unityGameIdIOS: 
-  unityGameIdWebGL: 
-  customId1: 
-  customId2: 
-  customId3: 
+  appLovinSdkKey: 
+  ironSourceAppKey: 
+  adUnits:
+  - name: AdMob Banner
+    formatId: banner
+    networkId: admob
+    androidAdUnitId: 1234
+    iosAdUnitId: 
+    isActive: 1
+    priority: 0
+    notes: 
+  - name: admob interstitial
+    formatId: interstitial
+    networkId: admob
+    androidAdUnitId: 123
+    iosAdUnitId: 
+    isActive: 1
+    priority: 0
+    notes: 

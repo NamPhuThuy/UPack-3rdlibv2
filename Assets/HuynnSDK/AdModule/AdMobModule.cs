@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using GameDevToi.ThirdLib.Core;
 using GoogleMobileAds.Api;
@@ -110,9 +111,13 @@ namespace GameDevToi.ThirdLib.AdModule
                 {
                     if (rewardedAds.ContainsKey(formatId) && rewardedAds[formatId].CanShowAd())
                     {
+                        var adUnit = config.GetActiveAdUnits("rewarded").FirstOrDefault();
+                        string adUnitId = adUnit?.GetAdUnitId() ?? "unknown";
+
                         rewardedAds[formatId].Show((Reward reward) =>
                         {
                             LogInfo($"Rewarded ad granted reward: {reward.Type} - {reward.Amount}");
+                            AdEvents.TriggerRewarded("rewarded", NetworkId, adUnitId, reward.Type, reward.Amount);
                         });
                     }
                 }
@@ -127,9 +132,13 @@ namespace GameDevToi.ThirdLib.AdModule
                 {
                     if (rewardedInterstitialAds.ContainsKey(formatId) && rewardedInterstitialAds[formatId].CanShowAd())
                     {
+                        var adUnit = config.GetActiveAdUnits("rewarded_interstitial").FirstOrDefault();
+                        string adUnitId = adUnit?.GetAdUnitId() ?? "unknown";
+
                         rewardedInterstitialAds[formatId].Show((Reward reward) =>
                         {
                             LogInfo($"Rewarded interstitial granted reward: {reward.Type} - {reward.Amount}");
+                            AdEvents.TriggerRewarded("rewarded_interstitial", NetworkId, adUnitId, reward.Type, reward.Amount);
                         });
                     }
                 }
@@ -223,6 +232,9 @@ namespace GameDevToi.ThirdLib.AdModule
         {
             LogInfo($"Loading Banner: {adUnitId}");
 
+            // Trigger load started event
+            AdEvents.Trigger(AdEventType.AdLoadStarted, "banner", NetworkId, adUnitId);
+
             // Destroy existing banner if any
             if (bannerAds.ContainsKey("banner"))
             {
@@ -237,22 +249,33 @@ namespace GameDevToi.ThirdLib.AdModule
             {
                 LogInfo("Banner ad loaded successfully");
                 loadedAds.Add("banner");
+                AdEvents.Trigger(AdEventType.AdLoadSuccess, "banner", NetworkId, adUnitId);
             };
 
             bannerView.OnBannerAdLoadFailed += (LoadAdError error) =>
             {
                 LogError($"Banner ad failed to load: {error.GetMessage()}");
                 loadedAds.Remove("banner");
+                AdEvents.TriggerFailed("banner", NetworkId, adUnitId, error.GetMessage(), error.GetCode());
             };
 
             bannerView.OnAdPaid += (AdValue adValue) =>
             {
                 LogInfo($"Banner ad paid: {adValue.Value} {adValue.CurrencyCode}");
+                AdEvents.TriggerPaid("banner", NetworkId, adUnitId,
+                    (double)adValue.Value / 1000000.0, adValue.CurrencyCode);
             };
 
             bannerView.OnAdClicked += () =>
             {
                 LogInfo("Banner ad clicked");
+                AdEvents.Trigger(AdEventType.AdClicked, "banner", NetworkId, adUnitId);
+            };
+
+            bannerView.OnAdImpressionRecorded += () =>
+            {
+                LogInfo("Banner ad impression recorded");
+                AdEvents.Trigger(AdEventType.AdImpression, "banner", NetworkId, adUnitId);
             };
 
             // Store reference
@@ -269,6 +292,9 @@ namespace GameDevToi.ThirdLib.AdModule
         {
             LogInfo($"Loading Interstitial: {adUnitId}");
 
+            // Trigger load started event
+            AdEvents.Trigger(AdEventType.AdLoadStarted, "interstitial", NetworkId, adUnitId);
+
             // Clean up old ad if exists
             if (interstitialAds.ContainsKey("interstitial"))
             {
@@ -284,37 +310,45 @@ namespace GameDevToi.ThirdLib.AdModule
                 {
                     LogError($"Interstitial ad failed to load: {error?.GetMessage()}");
                     loadedAds.Remove("interstitial");
+                    AdEvents.TriggerFailed("interstitial", NetworkId, adUnitId, error?.GetMessage(), error?.GetCode() ?? 0);
                     return;
                 }
 
                 LogInfo("Interstitial ad loaded successfully");
                 interstitialAds["interstitial"] = ad;
                 loadedAds.Add("interstitial");
+                AdEvents.Trigger(AdEventType.AdLoadSuccess, "interstitial", NetworkId, adUnitId);
 
                 // Register event handlers
                 ad.OnAdPaid += (AdValue adValue) =>
                 {
                     LogInfo($"Interstitial ad paid: {adValue.Value} {adValue.CurrencyCode}");
+                    AdEvents.TriggerPaid("interstitial", NetworkId, adUnitId,
+                        (double)adValue.Value / 1000000.0, adValue.CurrencyCode);
                 };
 
                 ad.OnAdImpressionRecorded += () =>
                 {
                     LogInfo("Interstitial ad impression recorded");
+                    AdEvents.Trigger(AdEventType.AdImpression, "interstitial", NetworkId, adUnitId);
                 };
 
                 ad.OnAdClicked += () =>
                 {
                     LogInfo("Interstitial ad clicked");
+                    AdEvents.Trigger(AdEventType.AdClicked, "interstitial", NetworkId, adUnitId);
                 };
 
                 ad.OnAdFullScreenContentOpened += () =>
                 {
                     LogInfo("Interstitial ad opened");
+                    AdEvents.Trigger(AdEventType.AdShown, "interstitial", NetworkId, adUnitId);
                 };
 
                 ad.OnAdFullScreenContentClosed += () =>
                 {
                     LogInfo("Interstitial ad closed");
+                    AdEvents.Trigger(AdEventType.AdClosed, "interstitial", NetworkId, adUnitId);
                     // Auto reload
                     LoadInterstitial(adUnitId);
                 };
@@ -335,6 +369,9 @@ namespace GameDevToi.ThirdLib.AdModule
         {
             LogInfo($"Loading Rewarded: {adUnitId}");
 
+            // Trigger load started event
+            AdEvents.Trigger(AdEventType.AdLoadStarted, "rewarded", NetworkId, adUnitId);
+
             // Clean up old ad if exists
             if (rewardedAds.ContainsKey("rewarded"))
             {
@@ -350,37 +387,45 @@ namespace GameDevToi.ThirdLib.AdModule
                 {
                     LogError($"Rewarded ad failed to load: {error?.GetMessage()}");
                     loadedAds.Remove("rewarded");
+                    AdEvents.TriggerFailed("rewarded", NetworkId, adUnitId, error?.GetMessage(), error?.GetCode() ?? 0);
                     return;
                 }
 
                 LogInfo("Rewarded ad loaded successfully");
                 rewardedAds["rewarded"] = ad;
                 loadedAds.Add("rewarded");
+                AdEvents.Trigger(AdEventType.AdLoadSuccess, "rewarded", NetworkId, adUnitId);
 
                 // Register event handlers
                 ad.OnAdPaid += (AdValue adValue) =>
                 {
                     LogInfo($"Rewarded ad paid: {adValue.Value} {adValue.CurrencyCode}");
+                    AdEvents.TriggerPaid("rewarded", NetworkId, adUnitId,
+                        (double)adValue.Value / 1000000.0, adValue.CurrencyCode);
                 };
 
                 ad.OnAdImpressionRecorded += () =>
                 {
                     LogInfo("Rewarded ad impression recorded");
+                    AdEvents.Trigger(AdEventType.AdImpression, "rewarded", NetworkId, adUnitId);
                 };
 
                 ad.OnAdClicked += () =>
                 {
                     LogInfo("Rewarded ad clicked");
+                    AdEvents.Trigger(AdEventType.AdClicked, "rewarded", NetworkId, adUnitId);
                 };
 
                 ad.OnAdFullScreenContentOpened += () =>
                 {
                     LogInfo("Rewarded ad opened");
+                    AdEvents.Trigger(AdEventType.AdShown, "rewarded", NetworkId, adUnitId);
                 };
 
                 ad.OnAdFullScreenContentClosed += () =>
                 {
                     LogInfo("Rewarded ad closed");
+                    AdEvents.Trigger(AdEventType.AdClosed, "rewarded", NetworkId, adUnitId);
                     // Auto reload
                     LoadRewarded(adUnitId);
                 };
@@ -401,6 +446,9 @@ namespace GameDevToi.ThirdLib.AdModule
         {
             LogInfo($"Loading App Open: {adUnitId}");
 
+            // Trigger load started event
+            AdEvents.Trigger(AdEventType.AdLoadStarted, "appopen", NetworkId, adUnitId);
+
             // Clean up old ad if exists
             if (appOpenAds.ContainsKey("appopen"))
             {
@@ -416,37 +464,45 @@ namespace GameDevToi.ThirdLib.AdModule
                 {
                     LogError($"App Open ad failed to load: {error?.GetMessage()}");
                     loadedAds.Remove("appopen");
+                    AdEvents.TriggerFailed("appopen", NetworkId, adUnitId, error?.GetMessage(), error?.GetCode() ?? 0);
                     return;
                 }
 
                 LogInfo("App Open ad loaded successfully");
                 appOpenAds["appopen"] = ad;
                 loadedAds.Add("appopen");
+                AdEvents.Trigger(AdEventType.AdLoadSuccess, "appopen", NetworkId, adUnitId);
 
                 // Register event handlers
                 ad.OnAdPaid += (AdValue adValue) =>
                 {
                     LogInfo($"App Open ad paid: {adValue.Value} {adValue.CurrencyCode}");
+                    AdEvents.TriggerPaid("appopen", NetworkId, adUnitId,
+                        (double)adValue.Value / 1000000.0, adValue.CurrencyCode);
                 };
 
                 ad.OnAdImpressionRecorded += () =>
                 {
                     LogInfo("App Open ad impression recorded");
+                    AdEvents.Trigger(AdEventType.AdImpression, "appopen", NetworkId, adUnitId);
                 };
 
                 ad.OnAdClicked += () =>
                 {
                     LogInfo("App Open ad clicked");
+                    AdEvents.Trigger(AdEventType.AdClicked, "appopen", NetworkId, adUnitId);
                 };
 
                 ad.OnAdFullScreenContentOpened += () =>
                 {
                     LogInfo("App Open ad opened");
+                    AdEvents.Trigger(AdEventType.AdShown, "appopen", NetworkId, adUnitId);
                 };
 
                 ad.OnAdFullScreenContentClosed += () =>
                 {
                     LogInfo("App Open ad closed");
+                    AdEvents.Trigger(AdEventType.AdClosed, "appopen", NetworkId, adUnitId);
                     // Auto reload
                     LoadAppOpen(adUnitId);
                 };
@@ -467,6 +523,9 @@ namespace GameDevToi.ThirdLib.AdModule
         {
             LogInfo($"Loading Rewarded Interstitial: {adUnitId}");
 
+            // Trigger load started event
+            AdEvents.Trigger(AdEventType.AdLoadStarted, "rewarded_interstitial", NetworkId, adUnitId);
+
             // Clean up old ad if exists
             if (rewardedInterstitialAds.ContainsKey("rewarded_interstitial"))
             {
@@ -482,37 +541,45 @@ namespace GameDevToi.ThirdLib.AdModule
                 {
                     LogError($"Rewarded Interstitial ad failed to load: {error?.GetMessage()}");
                     loadedAds.Remove("rewarded_interstitial");
+                    AdEvents.TriggerFailed("rewarded_interstitial", NetworkId, adUnitId, error?.GetMessage(), error?.GetCode() ?? 0);
                     return;
                 }
 
                 LogInfo("Rewarded Interstitial ad loaded successfully");
                 rewardedInterstitialAds["rewarded_interstitial"] = ad;
                 loadedAds.Add("rewarded_interstitial");
+                AdEvents.Trigger(AdEventType.AdLoadSuccess, "rewarded_interstitial", NetworkId, adUnitId);
 
                 // Register event handlers
                 ad.OnAdPaid += (AdValue adValue) =>
                 {
                     LogInfo($"Rewarded Interstitial ad paid: {adValue.Value} {adValue.CurrencyCode}");
+                    AdEvents.TriggerPaid("rewarded_interstitial", NetworkId, adUnitId,
+                        (double)adValue.Value / 1000000.0, adValue.CurrencyCode);
                 };
 
                 ad.OnAdImpressionRecorded += () =>
                 {
                     LogInfo("Rewarded Interstitial ad impression recorded");
+                    AdEvents.Trigger(AdEventType.AdImpression, "rewarded_interstitial", NetworkId, adUnitId);
                 };
 
                 ad.OnAdClicked += () =>
                 {
                     LogInfo("Rewarded Interstitial ad clicked");
+                    AdEvents.Trigger(AdEventType.AdClicked, "rewarded_interstitial", NetworkId, adUnitId);
                 };
 
                 ad.OnAdFullScreenContentOpened += () =>
                 {
                     LogInfo("Rewarded Interstitial ad opened");
+                    AdEvents.Trigger(AdEventType.AdShown, "rewarded_interstitial", NetworkId, adUnitId);
                 };
 
                 ad.OnAdFullScreenContentClosed += () =>
                 {
                     LogInfo("Rewarded Interstitial ad closed");
+                    AdEvents.Trigger(AdEventType.AdClosed, "rewarded_interstitial", NetworkId, adUnitId);
                     // Auto reload
                     LoadRewardedInterstitial(adUnitId);
                 };

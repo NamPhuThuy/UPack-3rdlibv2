@@ -73,3 +73,5 @@ crashlytics-build.properties
 
 # macOS
 .DS_Store
+Assets/Firebase/Plugins/x86_64/FirebaseCppApp-13_5_0.bundle
+Assets/Firebase/Plugins/x86_64/FirebaseCppApp-13_5_0.so

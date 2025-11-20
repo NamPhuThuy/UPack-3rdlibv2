@@ -3,6 +3,8 @@ using UnityEditor;
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
+using GameDevToi.ThirdLib.Core;
+using GameDevToi.ThirdLib.Editor;
 
 namespace GameDevToi.ThirdLib
 {
@@ -19,7 +21,7 @@ namespace GameDevToi.ThirdLib
         private readonly string[] tabs = { "SDK Config", "Ad Units" };
 
         // Ad Units management
-        private Dictionary<AdFormat, bool> adFormatFoldouts = new Dictionary<AdFormat, bool>();
+        private Dictionary<string, bool> adFormatFoldouts = new Dictionary<string, bool>();
         private Vector2 adUnitsScrollPosition;
 
         [MenuItem("3rdLib/Open Window")]
@@ -38,11 +40,12 @@ namespace GameDevToi.ThirdLib
 
         private void InitializeAdFormatFoldouts()
         {
-            foreach (AdFormat format in System.Enum.GetValues(typeof(AdFormat)))
+            var formats = AdRegistry.GetAllFormats();
+            foreach (var format in formats)
             {
-                if (!adFormatFoldouts.ContainsKey(format))
+                if (!adFormatFoldouts.ContainsKey(format.id))
                 {
-                    adFormatFoldouts[format] = true;
+                    adFormatFoldouts[format.id] = true;
                 }
             }
         }
@@ -205,27 +208,34 @@ namespace GameDevToi.ThirdLib
 
             // Group ad units by format
             var groupedAdUnits = config.adUnits
-                .GroupBy(ad => ad.format)
+                .Where(ad => ad.IsValid())
+                .GroupBy(ad => ad.formatId)
                 .OrderBy(g => g.Key);
 
             foreach (var group in groupedAdUnits)
             {
-                AdFormat format = group.Key;
+                string formatId = group.Key;
                 List<AdUnit> units = group.ToList();
+
+                var formatDef = AdRegistry.GetFormat(formatId);
+                string formatDisplayName = formatDef?.displayName ?? formatId;
 
                 EditorGUILayout.BeginVertical(EditorStyles.helpBox);
 
                 // Foldout header with count
                 EditorGUILayout.BeginHorizontal();
-                adFormatFoldouts[format] = EditorGUILayout.Foldout(
-                    adFormatFoldouts[format],
-                    $"{format} ({units.Count})",
+                if (!adFormatFoldouts.ContainsKey(formatId))
+                    adFormatFoldouts[formatId] = true;
+
+                adFormatFoldouts[formatId] = EditorGUILayout.Foldout(
+                    adFormatFoldouts[formatId],
+                    $"{formatDisplayName} ({units.Count})",
                     true,
                     EditorStyles.foldoutHeader
                 );
                 EditorGUILayout.EndHorizontal();
 
-                if (adFormatFoldouts[format])
+                if (adFormatFoldouts[formatId])
                 {
                     EditorGUI.indentLevel++;
 
@@ -264,7 +274,8 @@ namespace GameDevToi.ThirdLib
                 headerStyle.normal.textColor = Color.gray;
             }
 
-            EditorGUILayout.LabelField($"{adUnit.network}", headerStyle, GUILayout.Width(100));
+            string networkDisplayName = AdEditorHelper.GetNetworkDisplayName(adUnit.networkId);
+            EditorGUILayout.LabelField(networkDisplayName, headerStyle, GUILayout.Width(100));
 
             adUnit.name = EditorGUILayout.TextField(adUnit.name);
 
@@ -289,7 +300,7 @@ namespace GameDevToi.ThirdLib
             // Network dropdown
             EditorGUILayout.BeginHorizontal();
             EditorGUILayout.LabelField("Network:", GUILayout.Width(80));
-            adUnit.network = (AdNetwork)EditorGUILayout.EnumPopup(adUnit.network);
+            adUnit.networkId = AdEditorHelper.DrawNetworkDropdown(adUnit.networkId);
             EditorGUILayout.EndHorizontal();
 
             // Priority
@@ -328,39 +339,29 @@ namespace GameDevToi.ThirdLib
 
         private void ShowAddAdUnitMenu()
         {
-            GenericMenu menu = new GenericMenu();
-
-            foreach (AdFormat format in System.Enum.GetValues(typeof(AdFormat)))
-            {
-                foreach (AdNetwork network in System.Enum.GetValues(typeof(AdNetwork)))
-                {
-                    menu.AddItem(
-                        new GUIContent($"{format}/{network}"),
-                        false,
-                        () => AddNewAdUnit(format, network)
-                    );
-                }
-            }
-
-            menu.ShowAsContext();
+            AdEditorHelper.ShowAddAdUnitMenu((formatId, networkId) => AddNewAdUnit(formatId, networkId));
         }
 
-        private void AddNewAdUnit(AdFormat format, AdNetwork network)
+        private void AddNewAdUnit(string formatId, string networkId)
         {
             if (config.adUnits == null)
             {
                 config.adUnits = new List<AdUnit>();
             }
 
-            AdUnit newAdUnit = new AdUnit(format, network);
+            AdUnit newAdUnit = new AdUnit(formatId, networkId);
             config.adUnits.Add(newAdUnit);
 
             EditorUtility.SetDirty(config);
 
             // Ensure foldout is open for the new ad unit's format
-            if (adFormatFoldouts.ContainsKey(format))
+            if (!adFormatFoldouts.ContainsKey(formatId))
             {
-                adFormatFoldouts[format] = true;
+                adFormatFoldouts[formatId] = true;
+            }
+            else
+            {
+                adFormatFoldouts[formatId] = true;
             }
         }
 
