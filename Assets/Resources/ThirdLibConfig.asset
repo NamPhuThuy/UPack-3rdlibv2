@@ -19,12 +19,12 @@ MonoBehaviour:
   googleAdMobIOSAppId: ca-app-pub-123123456456456
   facebookAppId: 
   facebookClientToken: 
-  appLovinSdkKey: 
+  appLovinSdkKey: "\xE1dasdasd123123"
   ironSourceAppKey: 
   adUnits:
   - name: AdMob Banner
     formatId: banner
-    networkId: admob
+    networkId: applovin
     androidAdUnitId: 1234
     iosAdUnitId: 
     isActive: 1
@@ -32,8 +32,8 @@ MonoBehaviour:
     notes: 
   - name: admob interstitial
     formatId: interstitial
-    networkId: admob
-    androidAdUnitId: 123
+    networkId: applovin
+    androidAdUnitId: 12345
     iosAdUnitId: 
     isActive: 1
     priority: 0

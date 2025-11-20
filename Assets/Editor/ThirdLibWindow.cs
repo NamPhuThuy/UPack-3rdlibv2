@@ -168,7 +168,24 @@ namespace GameDevToi.ThirdLib
             DrawSection("AppLovin", () =>
             {
                 SerializedProperty appLovinSdkKey = serializedConfig.FindProperty("appLovinSdkKey");
+
+                EditorGUI.BeginChangeCheck();
                 EditorGUILayout.PropertyField(appLovinSdkKey, new GUIContent("SDK Key"));
+
+                // Khi SDK Key thay đổi, cập nhật vào AppLovinSettings
+                if (EditorGUI.EndChangeCheck())
+                {
+                    serializedConfig.ApplyModifiedProperties();
+
+                    // Cập nhật AppLovinSettings ScriptableObject
+                    var appLovinSettings = AppLovinSettings.Instance;
+                    if (appLovinSettings != null)
+                    {
+                        appLovinSettings.SdkKey = config.appLovinSdkKey;
+                        appLovinSettings.SaveAsync();
+                        Debug.Log($"[3rdLib] Updated AppLovin SDK Key: {config.appLovinSdkKey}");
+                    }
+                }
             });
 
             EditorGUILayout.Space();
