@@ -106,14 +106,36 @@ namespace GameDevToi.ThirdLib
         }
 
         /// <summary>
-        /// Đăng ký các built-in modules (trong DLL)
+        /// Đăng ký các built-in modules tự động qua reflection
         /// </summary>
         private void RegisterBuiltInModules()
         {
-            RegisterAdModule(new AdMobModule());
-            RegisterAdModule(new AppLovinModule());
-            RegisterAdModule(new IronSourceModule());
-            RegisterAdModule(new UnityAdsModule());
+            // Tìm tất cả các class implement IAdNetworkModule trong assembly hiện tại
+            var moduleTypes = System.AppDomain.CurrentDomain.GetAssemblies()
+                .SelectMany(assembly => assembly.GetTypes())
+                .Where(type => !type.IsAbstract && !type.IsInterface &&
+                              typeof(IAdNetworkModule).IsAssignableFrom(type) &&
+                              type != typeof(BaseAdNetworkModule))
+                .ToList();
+
+            Debug.Log($"[AdBridge] Found {moduleTypes.Count} ad network module types");
+
+            foreach (var moduleType in moduleTypes)
+            {
+                try
+                {
+                    // Tạo instance của module
+                    var module = System.Activator.CreateInstance(moduleType) as IAdNetworkModule;
+                    if (module != null)
+                    {
+                        RegisterAdModule(module);
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    Debug.LogWarning($"[AdBridge] Failed to create instance of {moduleType.Name}: {ex.Message}");
+                }
+            }
         }
 
         /// <summary>
