@@ -18,11 +18,15 @@ namespace GameDevToi.ThirdLib
 
         // Tab management
         private int selectedTab = 0;
-        private readonly string[] tabs = { "SDK Config", "Ad Units" };
+        private readonly string[] tabs = { "SDK Config", "Ad Units", "Download Modules" };
 
         // Ad Units management
         private Dictionary<string, bool> adFormatFoldouts = new Dictionary<string, bool>();
         private Vector2 adUnitsScrollPosition;
+
+        // Download modules management
+        private Dictionary<string, bool> downloadingModules = new Dictionary<string, bool>();
+        private Dictionary<string, string> downloadErrors = new Dictionary<string, string>();
 
         [MenuItem("3rdLib/Open Window")]
         public static void ShowWindow()
@@ -110,6 +114,9 @@ namespace GameDevToi.ThirdLib
                     break;
                 case 1:
                     DrawAdUnitsTab();
+                    break;
+                case 2:
+                    DrawDownloadModulesTab();
                     break;
             }
 
@@ -540,5 +547,307 @@ namespace GameDevToi.ThirdLib
                 SaveConfig();
             }
         }
+
+        #region Download Modules Tab
+
+        private void DrawDownloadModulesTab()
+        {
+            EditorGUILayout.HelpBox(
+                "Download các Ad Network Modules từ GitHub. Modules sẽ tự động được Unity compile khi SDK tương ứng đã được import.",
+                MessageType.Info
+            );
+            EditorGUILayout.Space();
+
+            var modules = GetAvailableModules();
+
+            foreach (var module in modules)
+            {
+                DrawModuleCard(module);
+                EditorGUILayout.Space();
+            }
+        }
+
+        private List<ModuleInfo> GetAvailableModules()
+        {
+            return new List<ModuleInfo>
+            {
+                new ModuleInfo
+                {
+                    name = "Google AdMob",
+                    fileName = "AdMobModule.cs",
+                    downloadUrl = "https://raw.githubusercontent.com/nhathuy7996/unity3rdlibv2/develop/Assets/HuynnSDK/AdModule/AdMobModule.cs",
+                    localPath = "Assets/HuynnSDK/AdModule/AdMobModule.cs",
+                    description = "Google Mobile Ads SDK integration với support đầy đủ cho Banner, Interstitial, Rewarded, App Open và Rewarded Interstitial.",
+                    requiredSDK = "Google Mobile Ads Unity Plugin",
+                    defineSymbol = "ADMOB"
+                },
+                new ModuleInfo
+                {
+                    name = "AppLovin MAX",
+                    fileName = "AppLovinModule.cs",
+                    downloadUrl = "https://raw.githubusercontent.com/nhathuy7996/unity3rdlibv2/develop/Assets/HuynnSDK/AdModule/AppLovinModule.cs",
+                    localPath = "Assets/HuynnSDK/AdModule/AppLovinModule.cs",
+                    description = "AppLovin MAX mediation SDK với support Banner, Interstitial, Rewarded.",
+                    requiredSDK = "AppLovin MAX Unity Plugin",
+                    defineSymbol = "APPLOVIN"
+                },
+                new ModuleInfo
+                {
+                    name = "IronSource",
+                    fileName = "IronSourceModule.cs",
+                    downloadUrl = "https://raw.githubusercontent.com/nhathuy7996/unity3rdlibv2/develop/Assets/HuynnSDK/AdModule/IronSourceModule.cs",
+                    localPath = "Assets/HuynnSDK/AdModule/IronSourceModule.cs",
+                    description = "IronSource mediation SDK (stub implementation - cần customize).",
+                    requiredSDK = "IronSource Unity Plugin",
+                    defineSymbol = "IRONSOURCE"
+                },
+                new ModuleInfo
+                {
+                    name = "Unity Ads",
+                    fileName = "UnityAdsModule.cs",
+                    downloadUrl = "https://raw.githubusercontent.com/nhathuy7996/unity3rdlibv2/develop/Assets/HuynnSDK/AdModule/UnityAdsModule.cs",
+                    localPath = "Assets/HuynnSDK/AdModule/UnityAdsModule.cs",
+                    description = "Unity Ads SDK (stub implementation - cần customize).",
+                    requiredSDK = "Unity Ads Package",
+                    defineSymbol = "UNITY_ADS"
+                },
+                new ModuleInfo
+                {
+                    name = "Firebase Bridge",
+                    fileName = "FirebaseBridge.cs",
+                    downloadUrl = "https://raw.githubusercontent.com/nhathuy7996/unity3rdlibv2/develop/Assets/HuynnSDK/FirebaseBridge.cs",
+                    localPath = "Assets/HuynnSDK/FirebaseBridge.cs",
+                    description = "Firebase Analytics integration tự động log ad events.",
+                    requiredSDK = "Firebase Unity SDK",
+                    defineSymbol = "FIREBASE"
+                }
+            };
+        }
+
+        private void DrawModuleCard(ModuleInfo module)
+        {
+            bool isInstalled = File.Exists(module.localPath);
+            bool isDownloading = downloadingModules.ContainsKey(module.fileName) && downloadingModules[module.fileName];
+
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+
+            // Header
+            EditorGUILayout.BeginHorizontal();
+            GUIStyle titleStyle = new GUIStyle(EditorStyles.boldLabel) { fontSize = 13 };
+            EditorGUILayout.LabelField(module.name, titleStyle);
+
+            if (isInstalled)
+            {
+                GUIStyle installedStyle = new GUIStyle(EditorStyles.miniLabel);
+                installedStyle.normal.textColor = new Color(0.2f, 0.8f, 0.2f);
+                EditorGUILayout.LabelField("✓ Installed", installedStyle, GUILayout.Width(80));
+            }
+
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.Space(3);
+
+            // Description
+            EditorGUILayout.LabelField(module.description, EditorStyles.wordWrappedLabel);
+
+            EditorGUILayout.Space(3);
+
+            // Info
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("Required SDK:", EditorStyles.miniLabel, GUILayout.Width(90));
+            EditorGUILayout.LabelField(module.requiredSDK, EditorStyles.miniLabel);
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("Define Symbol:", EditorStyles.miniLabel, GUILayout.Width(90));
+            EditorGUILayout.LabelField($"#{module.defineSymbol}", EditorStyles.miniLabel);
+            EditorGUILayout.EndHorizontal();
+
+            // Error message
+            if (downloadErrors.ContainsKey(module.fileName))
+            {
+                EditorGUILayout.HelpBox(downloadErrors[module.fileName], MessageType.Error);
+            }
+
+            EditorGUILayout.Space(5);
+
+            // Action buttons
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.FlexibleSpace();
+
+            GUI.enabled = !isDownloading;
+
+            if (isInstalled)
+            {
+                GUI.backgroundColor = new Color(1f, 0.6f, 0.6f);
+                if (GUILayout.Button("Delete Module", GUILayout.Width(120), GUILayout.Height(25)))
+                {
+                    DeleteModule(module);
+                }
+                GUI.backgroundColor = Color.white;
+            }
+            else
+            {
+                GUI.backgroundColor = new Color(0.6f, 0.8f, 1f);
+                string buttonText = isDownloading ? "Downloading..." : "Download";
+                if (GUILayout.Button(buttonText, GUILayout.Width(120), GUILayout.Height(25)))
+                {
+                    DownloadModule(module);
+                }
+                GUI.backgroundColor = Color.white;
+            }
+
+            GUI.enabled = true;
+
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.EndVertical();
+        }
+
+        private async void DownloadModule(ModuleInfo module)
+        {
+            downloadingModules[module.fileName] = true;
+            downloadErrors.Remove(module.fileName);
+            Repaint();
+
+            try
+            {
+                Debug.Log($"[ThirdLib] Downloading {module.name} from {module.downloadUrl}");
+
+                using (var client = new System.Net.Http.HttpClient())
+                {
+                    client.Timeout = System.TimeSpan.FromSeconds(30);
+                    var response = await client.GetAsync(module.downloadUrl);
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var content = await response.Content.ReadAsStringAsync();
+
+                        // Ensure directory exists
+                        string directory = Path.GetDirectoryName(module.localPath);
+                        if (!Directory.Exists(directory))
+                        {
+                            Directory.CreateDirectory(directory);
+                        }
+
+                        // Write file
+                        File.WriteAllText(module.localPath, content);
+
+                        // Add define symbol
+                        AddDefineSymbol(module.defineSymbol);
+
+                        // Refresh Unity
+                        AssetDatabase.Refresh();
+
+                        Debug.Log($"[ThirdLib] Successfully downloaded {module.name} to {module.localPath}");
+                        Debug.Log($"[ThirdLib] Added define symbol: {module.defineSymbol}");
+                        ShowNotification(new GUIContent($"✓ Downloaded {module.name}"));
+                    }
+                    else
+                    {
+                        throw new System.Exception($"HTTP {response.StatusCode}: {response.ReasonPhrase}");
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError($"[ThirdLib] Failed to download {module.name}: {ex.Message}");
+                downloadErrors[module.fileName] = $"Download failed: {ex.Message}";
+                ShowNotification(new GUIContent($"✗ Failed to download {module.name}"));
+            }
+            finally
+            {
+                downloadingModules[module.fileName] = false;
+                Repaint();
+            }
+        }
+
+        private void DeleteModule(ModuleInfo module)
+        {
+            if (EditorUtility.DisplayDialog(
+                "Delete Module",
+                $"Are you sure you want to delete {module.name}?\n\nFile: {module.fileName}",
+                "Delete",
+                "Cancel"))
+            {
+                try
+                {
+                    if (File.Exists(module.localPath))
+                    {
+                        File.Delete(module.localPath);
+
+                        // Delete .meta file
+                        string metaPath = module.localPath + ".meta";
+                        if (File.Exists(metaPath))
+                        {
+                            File.Delete(metaPath);
+                        }
+
+                        // Remove define symbol
+                        RemoveDefineSymbol(module.defineSymbol);
+
+                        AssetDatabase.Refresh();
+
+                        Debug.Log($"[ThirdLib] Deleted {module.name}");
+                        Debug.Log($"[ThirdLib] Removed define symbol: {module.defineSymbol}");
+                        ShowNotification(new GUIContent($"✓ Deleted {module.name}"));
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    Debug.LogError($"[ThirdLib] Failed to delete {module.name}: {ex.Message}");
+                    EditorUtility.DisplayDialog("Error", $"Failed to delete module:\n{ex.Message}", "OK");
+                }
+            }
+        }
+
+        private void AddDefineSymbol(string symbol)
+        {
+            if (string.IsNullOrEmpty(symbol)) return;
+
+            BuildTargetGroup targetGroup = EditorUserBuildSettings.selectedBuildTargetGroup;
+            string defines = PlayerSettings.GetScriptingDefineSymbolsForGroup(targetGroup);
+
+            var symbolsList = defines.Split(';').ToList();
+
+            if (!symbolsList.Contains(symbol))
+            {
+                symbolsList.Add(symbol);
+                string newDefines = string.Join(";", symbolsList.Where(s => !string.IsNullOrEmpty(s)));
+                PlayerSettings.SetScriptingDefineSymbolsForGroup(targetGroup, newDefines);
+                Debug.Log($"[ThirdLib] Added define symbol '{symbol}' to {targetGroup}");
+            }
+        }
+
+        private void RemoveDefineSymbol(string symbol)
+        {
+            if (string.IsNullOrEmpty(symbol)) return;
+
+            BuildTargetGroup targetGroup = EditorUserBuildSettings.selectedBuildTargetGroup;
+            string defines = PlayerSettings.GetScriptingDefineSymbolsForGroup(targetGroup);
+
+            var symbolsList = defines.Split(';').ToList();
+
+            if (symbolsList.Contains(symbol))
+            {
+                symbolsList.Remove(symbol);
+                string newDefines = string.Join(";", symbolsList.Where(s => !string.IsNullOrEmpty(s)));
+                PlayerSettings.SetScriptingDefineSymbolsForGroup(targetGroup, newDefines);
+                Debug.Log($"[ThirdLib] Removed define symbol '{symbol}' from {targetGroup}");
+            }
+        }
+
+        private class ModuleInfo
+        {
+            public string name;
+            public string fileName;
+            public string downloadUrl;
+            public string localPath;
+            public string description;
+            public string requiredSDK;
+            public string defineSymbol;
+        }
+
+        #endregion
     }
 }
