@@ -140,49 +140,75 @@ Editor Window
 
 ---
 
-## 📦 Cấu trúc thư mục
+## 📦 Cấu trúc dự án
+
+### Folder Structure
 
 ```
-Assets/HuynnSDK/
-├── Core/
-│   ├── AdDefinitions.cs          # Format & Network definitions
-│   ├── AdRegistry.cs              # Dynamic registration system
-│   ├── AdUnit.cs                  # Ad unit data model
+Assets/
+├── HuynnSDK/                      # SDK Runtime Components
+│   ├── Core/                      # ⚡ Core System (trong DLL)
+│   │   ├── AdUnit.cs              # Data model cho ad units
+│   │   ├── AdEvents.cs            # Event system (9 event types)
+│   │   ├── AdDefinitions.cs       # Format & Network definitions
+│   │   └── AdRegistry.cs          # Dynamic registration system
+│   │
+│   ├── AdModule/                  # 🔌 Ad Network Modules
+│   │   ├── IAdNetworkModule.cs    # ⚡ Interface (trong DLL)
+│   │   ├── BaseAdNetworkModule.cs # ⚡ Base class (trong DLL)
 │   └── AdEvents.cs                # Event system (9 events)
 │
 ├── AdModule/
 │   ├── IAdNetworkModule.cs        # Interface
-│   ├── BaseAdNetworkModule.cs     # Abstract base
-│   ├── AdMobModule.cs             # Google AdMob (full implementation)
-│   ├── AppLovinModule.cs          # AppLovin MAX
-│   ├── IronSourceModule.cs        # IronSource
-│   └── UnityAdsModule.cs          # Unity Ads
+│   │   ├── AdMobModule.cs         # 📱 Google AdMob (#if ADMOB)
+│   │   ├── AppLovinModule.cs      # 📱 AppLovin MAX (#if APPLOVIN)
+│   │   ├── IronSourceModule.cs    # 📱 IronSource (#if IRONSOURCE)
+│   │   └── UnityAdsModule.cs      # 📱 Unity Ads (#if UNITY_ADS)
+│   │
+│   ├── ThirdLibConfig.cs          # ⚡ ScriptableObject config (trong DLL)
+│   ├── AdBridge.cs                # ⚡ Singleton manager (trong DLL)
+│   ├── FirebaseBridge.cs          # 📱 Firebase Analytics (#if FIREBASE)
+│   │
+│   ├── Extensions/                # 🔧 Optional Extensions
+│   │   ├── CustomAdExtensions.cs  # Custom network example
+│   │   └── FirebaseAnalyticsLogger.cs
+│   │
+│   └── *Example.cs                # 📘 Usage Examples
+│       ├── AdBridgeExample.cs
+│       ├── ThirdLibConfigExample.cs
+│       ├── AdEventsExample.cs
+│       ├── FirebaseBridgeExample.cs
+│       └── TestSceneController.cs
 │
-├── AdBridge.cs                    # Main singleton manager
-├── ThirdLibConfig.cs              # ScriptableObject config
-├── FirebaseBridge.cs              # Firebase Analytics singleton
+├── Editor/                        # ⚡ Editor Tools (trong DLL)
+│   ├── ThirdLibWindow.cs          # Editor window UI
+│   └── AdEditorHelper.cs          # Helper utilities
 │
-├── Editor/
-│   ├── ThirdLibWindow.cs          # Unity Editor window
-│   └── AdEditorHelper.cs          # Helper methods for UI
+├── Plugins/                       # 🔒 Compiled DLLs
+│   ├── HuynnSDK.Runtime.dll       # Core runtime components
+│   └── Editor/
+│       └── HuynnSDK.Editor.dll    # Editor components
 │
-├── Extensions/
-│   ├── CustomAdExtensions.cs      # Example: Vungle custom network
-│   └── FirebaseAnalyticsLogger.cs # Alternative Firebase logger
-│
-└── Examples/
-    ├── AdBridgeExample.cs         # Usage examples
-    ├── ThirdLibConfigExample.cs   # Config access examples
-    ├── AdEventsExample.cs         # Event handling examples
-    ├── FirebaseBridgeExample.cs   # Firebase integration
-    └── TestSceneController.cs     # Complete test scene
+└── Resources/
+    └── ThirdLibConfig.asset       # Runtime config asset
+
+BuildDLL/                          # 🛠️ DLL Build System
+├── HuynnSDK.Runtime.csproj        # Runtime DLL project
+├── HuynnSDK.Editor.csproj         # Editor DLL project
+└── build.sh                       # Build automation script
 ```
+
+### Ký hiệu
+- ⚡ **Trong DLL**: Components đã được compile
+- 📱 **Source Code**: Có conditional compilation, Unity tự compile
+- 🔧 **Extensions**: Optional, có thể thêm hoặc bỏ
+- 📘 **Examples**: Demo code, reference implementation
 
 ---
 
-## 🚀 Hướng dẫn sử dụng
+## 🚀 Hướng dẫn implement
 
-### 1. Setup cơ bản (Unity Editor)
+### 1. Setup trong Unity Editor
 
 #### Bước 1: Mở ThirdLib Window
 
@@ -740,7 +766,9 @@ List<AdUnit> GetActiveAdUnits(string formatId)
 
 ---
 
-## 📖 Complete Example
+## 📖 Implementation Examples
+
+### Complete Game Integration
 
 ```csharp
 using UnityEngine;
@@ -751,13 +779,7 @@ public class GameController : MonoBehaviour
 {
     void Start()
     {
-        // System tự động initialize
-        Debug.Log("Ad system ready!");
-        
-        // Optional: Setup Firebase user properties
-        SetupFirebase();
-        
-        // Subscribe to events for game logic
+        // Setup event handlers
         AdEvents.OnAdRewarded += OnRewardGranted;
         AdEvents.OnAdClosed += OnAdClosed;
     }
@@ -768,13 +790,11 @@ public class GameController : MonoBehaviour
         AdEvents.OnAdClosed -= OnAdClosed;
     }
 
-    // Show banner when game starts
     public void OnGameStart()
     {
         AdBridge.Instance.ShowAd("banner");
     }
 
-    // Show interstitial between levels
     public void OnLevelComplete()
     {
         if (AdBridge.Instance.IsAdReady("interstitial"))
@@ -783,59 +803,107 @@ public class GameController : MonoBehaviour
         }
     }
 
-    // Show rewarded for bonus
     public void OnWatchAdForCoins()
     {
         if (AdBridge.Instance.IsAdReady("rewarded"))
         {
             AdBridge.Instance.ShowAd("rewarded");
         }
-        else
-        {
-            UIManager.ShowMessage("Ad not available");
-        }
     }
 
-    // Grant reward
     void OnRewardGranted(AdEventArgs e)
     {
         int coins = (int)e.RewardAmount;
         PlayerData.AddCoins(coins);
-        UIManager.ShowRewardNotification($"+{coins} coins!");
     }
 
-    // Resume game after ad closes
     void OnAdClosed(AdEventArgs e)
     {
         Time.timeScale = 1;
         AudioListener.volume = 1;
-        
-        if (e.FormatId == "interstitial")
-        {
-            // Continue to next level
-            SceneManager.LoadScene("NextLevel");
-        }
     }
-
-    void SetupFirebase()
-    {
-        FirebaseBridge.Instance.SetUserId(GetUserId());
-        FirebaseBridge.Instance.SetUserProperty("user_level", GetUserLevel().ToString());
-    }
-
-    string GetUserId() => SystemInfo.deviceUniqueIdentifier;
-    int GetUserLevel() => PlayerPrefs.GetInt("Level", 1);
 }
 ```
 
 ---
 
-## 🎓 Summary
+## 🏗️ Kiến trúc tổng quan
 
-### Core Concepts
+### Hybrid DLL Architecture
 
-- **Modular**: Dễ dàng thêm ad networks mới
-- **Dynamic**: String-based IDs thay vì enums
+```
+┌─────────────────────────────────────────────────────────┐
+│                    HuynnSDK.Runtime.dll                 │
+│  ┌────────────────────────────────────────────────┐     │
+│  │  Core Components (SDK-Independent)             │     │
+│  │  • AdUnit, AdEvents, AdDefinitions             │     │
+│  │  • AdRegistry, ThirdLibConfig                  │     │
+│  │  • AdBridge (Dynamic Module Loader)            │     │
+│  │  • IAdNetworkModule, BaseAdNetworkModule       │     │
+│  └────────────────────────────────────────────────┘     │
+└─────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────┐
+│              Ad Network Modules (Source Code)           │
+│  ┌────────────────────────────────────────────────┐     │
+│  │  #if ADMOB                                     │     │
+│  │      AdMobModule : BaseAdNetworkModule         │     │
+│  │  #endif                                        │     │
+│  │                                                │     │
+│  │  #if APPLOVIN                                  │     │
+│  │      AppLovinModule : BaseAdNetworkModule      │     │
+│  │  #endif                                        │     │
+│  │                                                │     │
+│  │  → Unity tự động compile khi SDK có sẵn       │     │
+│  │  → AdBridge dùng reflection để load           │     │
+│  └────────────────────────────────────────────────┘     │
+└─────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────┐
+│                    HuynnSDK.Editor.dll                  │
+│  ┌────────────────────────────────────────────────┐     │
+│  │  Editor Components                             │     │
+│  │  • ThirdLibWindow (3rdLib Menu)                │     │
+│  │  • AdEditorHelper                              │     │
+│  └────────────────────────────────────────────────┘     │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Data Flow
+
+```
+ThirdLibWindow (Editor)
+    │
+    └─> ThirdLibConfig.asset (Resources/)
+           │
+           └─> Runtime: AdBridge.Instance
+                  │
+                  ├─> Auto-detect modules via Reflection
+                  │      │
+                  │      ├─> AdMobModule (nếu có #if ADMOB)
+                  │      ├─> AppLovinModule (nếu có #if APPLOVIN)
+                  │      └─> ...
+                  │
+                  └─> ShowAd(formatId)
+                         │
+                         └─> Waterfall mediation → Show ad
+                                │
+                                └─> Trigger AdEvents
+                                       │
+                                       └─> FirebaseBridge auto-log
+```
+
+---
+
+## 💡 Design Principles
+
+1. **Core trong DLL** - Components ổn định, không phụ thuộc external SDKs
+2. **Modules ở Source** - Flexible với conditional compilation
+3. **Dynamic Loading** - Reflection-based module registration tự động
+4. **Event-Driven** - Decoupled communication giữa components
+5. **Zero Config** - Auto-initialization, tự động setup khi game start
 - **Event-Driven**: Decouple ad logic khỏi game logic
 - **Auto-Initialization**: Singleton pattern với RuntimeInitializeOnLoadMethod
 - **Firebase Ready**: Tự động log ad events
