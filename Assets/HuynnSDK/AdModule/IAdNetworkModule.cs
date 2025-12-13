@@ -1,4 +1,3 @@
-using UnityEngine;
 using GameDevToi.ThirdLib.Core;
 
 namespace GameDevToi.ThirdLib.AdModule

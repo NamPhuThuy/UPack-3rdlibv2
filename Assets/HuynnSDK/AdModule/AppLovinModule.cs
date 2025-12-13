@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using UnityEngine;
 using GameDevToi.ThirdLib.Core;
 
@@ -15,34 +16,81 @@ namespace GameDevToi.ThirdLib.AdModule
         // Dictionary to store ad unit IDs by format
         private Dictionary<string, string> adUnitIds = new Dictionary<string, string>();
         private HashSet<string> loadedAds = new HashSet<string>();
+        private TaskCompletionSource<bool> initTcs;
+
+        #region Initialization
 
         public override void Initialize(ThirdLibConfig config)
         {
             base.Initialize(config);
 
-            string sdkKey = config.appLovinSdkKey;
+            if (!ValidateConfig(config)) return;
+            LogInfo($"AppLovin initializing with SDK Key: {config.appLovinSdkKey}");
 
-            if (string.IsNullOrEmpty(sdkKey))
-            {
-                LogWarning("AppLovin SDK Key not configured");
-                return;
-            }
-
-            LogInfo($"AppLovin initializing with SDK Key: {sdkKey}");
-
-            // SDK Key should be set in AppLovin Integration Manager
             MaxSdk.InitializeSdk();
-
-            // Setup callbacks
             MaxSdkCallbacks.OnSdkInitializedEvent += (MaxSdkBase.SdkConfiguration sdkConfiguration) =>
             {
                 isInitialized = true;
                 LogInfo("AppLovin MAX initialized successfully");
             };
-
-            // Attach ad callbacks
+            
             AttachAdCallbacks();
         }
+        
+        public override async Task InitializeAsync(ThirdLibConfig config)
+        {
+            // Early return if already initialized
+            if (isInitialized && initTcs == null)
+                return;
+
+            // Await existing initialization
+            if (initTcs != null && !initTcs.Task.IsCompleted)
+            {
+                await initTcs.Task;
+                return;
+            }
+
+            await base.InitializeAsync(config);
+            
+            if (!ValidateConfig(config)) return;
+            
+            LogInfo($"AppLovin initializing with SDK Key: {config.appLovinSdkKey}");
+
+            initTcs = new TaskCompletionSource<bool>();
+
+            MaxSdkCallbacks.OnSdkInitializedEvent -= OnSdkInitialized; // safety
+            // subscribe before init to avoid missing the callback
+            MaxSdkCallbacks.OnSdkInitializedEvent += OnSdkInitialized;
+
+            MaxSdk.InitializeSdk();
+            AttachAdCallbacks();
+
+            // wait until callback fires
+            await initTcs.Task;
+        }
+        
+        private void OnSdkInitialized(MaxSdkBase.SdkConfiguration sdkConfiguration)
+        {
+            MaxSdkCallbacks.OnSdkInitializedEvent -= OnSdkInitialized;
+
+            isInitialized = true;
+            LogInfo("AppLovin MAX initialized successfully");
+
+            initTcs?.TrySetResult(true);
+            initTcs = null;
+        }
+        
+        private bool ValidateConfig(ThirdLibConfig config)
+        {
+            if (string.IsNullOrEmpty(config.appLovinSdkKey))
+            {
+                LogWarning("AppLovin SDK Key not configured");
+                return false;
+            }
+            return true;
+        }
+
+        #endregion
 
         private void AttachAdCallbacks()
         {
@@ -85,7 +133,7 @@ namespace GameDevToi.ThirdLib.AdModule
             string adUnitId = adUnit.GetAdUnitId();
             var formatDef = adUnit.GetFormat();
             string formatName = formatDef?.displayName ?? adUnit.formatId;
-            LogInfo($"Loading {formatName} ad with ID: {adUnitId}");
+            LogInfo($"Loading {formatName} ad with ID: {adUnitId}, format: {formatDef}");
 
             // Store ad unit ID
             adUnitIds[adUnit.formatId] = adUnitId;

@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using UnityEngine;
 using GameDevToi.ThirdLib.Core;
 
@@ -22,6 +23,17 @@ namespace GameDevToi.ThirdLib.AdModule
             var networkDef = AdRegistry.GetNetwork(NetworkId);
             string displayName = networkDef?.displayName ?? NetworkId;
             Debug.Log($"[{displayName}] Initializing...");
+            
+            // _ = InitializeAsync(config);
+        }
+        
+        public virtual async Task InitializeAsync(ThirdLibConfig config)
+        {
+            this.config = config;
+            var networkDef = AdRegistry.GetNetwork(NetworkId);
+            string displayName = networkDef?.displayName ?? NetworkId;
+            Debug.Log($"[{displayName}] Initializing...");
+            await Task.CompletedTask;
         }
 
         public abstract void LoadAdUnit(AdUnit adUnit);
@@ -47,6 +59,8 @@ namespace GameDevToi.ThirdLib.AdModule
             LogWarning("ShowBanner not implemented for this network");
         }
 
+        #region Log Helpers
+        
         protected void LogInfo(string message)
         {
             var networkDef = AdRegistry.GetNetwork(NetworkId);
@@ -67,5 +81,7 @@ namespace GameDevToi.ThirdLib.AdModule
             string displayName = networkDef?.displayName ?? NetworkId;
             Debug.LogError($"[{displayName}] {message}");
         }
+        
+        #endregion
     }
 }

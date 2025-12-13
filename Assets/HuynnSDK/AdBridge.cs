@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using GameDevToi.ThirdLib.Core;
 using GameDevToi.ThirdLib.AdModule;
 
@@ -52,7 +53,9 @@ namespace GameDevToi.ThirdLib
             }
         }
 
-        private void Awake()
+        #region MonoBehaviour Callbacks
+
+        private async void Awake()
         {
             if (instance != null && instance != this)
             {
@@ -63,7 +66,7 @@ namespace GameDevToi.ThirdLib
             instance = this;
             DontDestroyOnLoad(gameObject);
 
-            Initialize();
+            await InitializeAsync();
         }
 
         private void OnApplicationQuit()
@@ -71,10 +74,12 @@ namespace GameDevToi.ThirdLib
             isQuitting = true;
         }
 
+        #endregion
+
         /// <summary>
         /// Khởi tạo AdBridge và các module
         /// </summary>
-        private void Initialize()
+        private async Task InitializeAsync()
         {
             if (isInitialized)
             {
@@ -99,7 +104,7 @@ namespace GameDevToi.ThirdLib
             RegisterBuiltInModules();
 
             // Phân tích ad units và init các module cần thiết
-            InitializeRequiredModules();
+            await InitializeRequiredModulesAsync();
 
             isInitialized = true;
             Debug.Log("[AdBridge] Initialization completed");
@@ -172,7 +177,7 @@ namespace GameDevToi.ThirdLib
         /// <summary>
         /// Phân tích ad units và khởi tạo các module cần thiết
         /// </summary>
-        private void InitializeRequiredModules()
+        private async Task InitializeRequiredModulesAsync()
         {
             if (config.adUnits == null || config.adUnits.Count == 0)
             {
@@ -192,21 +197,28 @@ namespace GameDevToi.ThirdLib
             // Khởi tạo từng module
             foreach (var networkId in usedNetworks)
             {
-                if (adModules.ContainsKey(networkId))
+                if (!adModules.ContainsKey(networkId))
                 {
-                    var networkDef = AdRegistry.GetNetwork(networkId);
-                    string displayName = networkDef?.displayName ?? networkId;
-                    Debug.Log($"[AdBridge] Initializing {displayName} module...");
+                    Debug.LogWarning($"[AdBridge] Module for '{networkId}' not registered");
+                    continue;
+                }
+                
+                var module = adModules[networkId];
+                var networkDef = AdRegistry.GetNetwork(networkId);
+                string displayName = networkDef?.displayName ?? networkId;
+                Debug.Log($"[AdBridge] Initializing {displayName} module...");
 
-                    adModules[networkId].Initialize(config);
-
-                    // Load các ad units của network này
-                    LoadAdUnitsForNetwork(networkId);
+                if (module is BaseAdNetworkModule baseModule)
+                {
+                    await baseModule.InitializeAsync(config);
                 }
                 else
                 {
-                    Debug.LogWarning($"[AdBridge] Module for '{networkId}' not registered");
+                    module.Initialize(config);
                 }
+
+                // Load các ad units của network này
+                LoadAdUnitsForNetwork(networkId);
             }
         }
 
@@ -327,7 +339,7 @@ namespace GameDevToi.ThirdLib
 
             Debug.Log("[AdBridge] Reloading ad units...");
             config = ThirdLibConfig.Instance;
-            InitializeRequiredModules();
+            InitializeRequiredModulesAsync();
         }
 
         /// <summary>
