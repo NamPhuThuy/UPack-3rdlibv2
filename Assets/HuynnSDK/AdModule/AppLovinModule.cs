@@ -143,14 +143,15 @@ namespace GameDevToi.ThirdLib.AdModule
             // Trigger load started event
             AdEvents.Trigger(AdEventType.AdLoadStarted, formatId, NetworkId, adUnitId);
 
-            if (formatId == "banner") LoadBanner(adUnitId);
-            else if (formatId == "interstitial") LoadInterstitial(adUnitId);
-            else if (formatId == "rewarded") LoadRewarded(adUnitId);
+            if (formatId == AdModuleConst.APPLOVIN_BANNER_FORMAT_ID) LoadBanner(adUnitId);
+            else if (formatId == AdModuleConst.APPLOVIN_INTERSTITIAL_FORMAT_ID) LoadInterstitial(adUnitId);
+            else if (formatId == AdModuleConst.APPLOVIN_REWARDED_FORMAT_ID) LoadRewarded(adUnitId);
             else LogWarning($"Unknown ad format: {formatId}");
         }
 
         private void LoadBanner(string adUnitId)
         {
+            LogInfo($"LoadBanner: adUnitId={adUnitId}");
             var config = new MaxSdkBase.AdViewConfiguration(MaxSdkBase.AdViewPosition.BottomCenter);
             MaxSdk.CreateBanner(adUnitId, config);
             MaxSdk.SetBannerBackgroundColor(adUnitId, Color.black);
@@ -159,11 +160,13 @@ namespace GameDevToi.ThirdLib.AdModule
 
         private void LoadInterstitial(string adUnitId)
         {
+            LogInfo($"LoadInterstitial: adUnitId={adUnitId}");
             MaxSdk.LoadInterstitial(adUnitId);
         }
 
         private void LoadRewarded(string adUnitId)
         {
+            LogInfo($"LoadRewarded: adUnitId={adUnitId}");
             MaxSdk.LoadRewardedAd(adUnitId);
         }
 

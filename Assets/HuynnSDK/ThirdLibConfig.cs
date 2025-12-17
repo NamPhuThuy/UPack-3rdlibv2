@@ -3,6 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using GameDevToi.ThirdLib.Core;
 
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
 namespace GameDevToi.ThirdLib
 {
     [CreateAssetMenu(fileName = "ThirdLibConfig", menuName = "GameDevToi/Third Lib Config")]
@@ -10,40 +14,31 @@ namespace GameDevToi.ThirdLib
     {
         private static ThirdLibConfig instance;
 
-        [Header("App Information")]
-        [Tooltip("Android Package Name (com.company.game)")]
+        [Header("App Information")] [Tooltip("Android Package Name (com.company.game)")]
         public string androidPackageName = "com.company.game";
 
-        [Tooltip("App Version (e.g., 1.0.0)")]
-        public string appVersion = "1.0.0";
+        [Tooltip("App Version (e.g., 1.0.0)")] public string appVersion = "1.0.0";
 
-        [Tooltip("Version Code (integer)")]
-        public int versionCode = 1;
+        [Tooltip("Version Code (integer)")] public int versionCode = 1;
 
-        [Header("Google Mobile Ads")]
-        [Tooltip("Android App ID for Google Mobile Ads")]
+        [Header("Google Mobile Ads")] [Tooltip("Android App ID for Google Mobile Ads")]
         public string googleAdMobAndroidAppId = "ca-app-pub-xxxxxxxxxxxxxxxx~yyyyyyyyyy";
 
         [Tooltip("iOS App ID for Google Mobile Ads")]
         public string googleAdMobIOSAppId = "ca-app-pub-xxxxxxxxxxxxxxxx~yyyyyyyyyy";
 
-        [Header("Facebook")]
-        [Tooltip("Facebook App ID")]
+        [Header("Facebook")] [Tooltip("Facebook App ID")]
         public string facebookAppId = "";
 
-        [Tooltip("Facebook Client Token")]
-        public string facebookClientToken = "";
+        [Tooltip("Facebook Client Token")] public string facebookClientToken = "";
 
-        [Header("AppLovin")]
-        [Tooltip("AppLovin SDK Key")]
+        [Header("AppLovin")] [Tooltip("AppLovin SDK Key")]
         public string appLovinSdkKey = "";
 
-        [Header("IronSource")]
-        [Tooltip("IronSource App Key")]
+        [Header("IronSource")] [Tooltip("IronSource App Key")]
         public string ironSourceAppKey = "";
 
-        [Header("Ad Units")]
-        [Tooltip("Danh sách các đơn vị quảng cáo")]
+        [Header("Ad Units")] [Tooltip("Danh sách các đơn vị quảng cáo")]
         public List<AdUnit> adUnits = new List<AdUnit>();
 
         /// <summary>
@@ -59,9 +54,11 @@ namespace GameDevToi.ThirdLib
 
                     if (instance == null)
                     {
-                        Debug.LogError("ThirdLibConfig not found in Resources folder! Please create one using 3rdLib > Open Window");
+                        Debug.LogError(
+                            "ThirdLibConfig not found in Resources folder! Please create one using 3rdLib > Open Window");
                     }
                 }
+
                 return instance;
             }
         }
@@ -93,7 +90,8 @@ namespace GameDevToi.ThirdLib
         /// </summary>
         public AdUnit GetAdUnit(string formatId, string networkId)
         {
-            return adUnits.FirstOrDefault(ad => ad.formatId == formatId && ad.networkId == networkId && ad.isActive && ad.IsValid());
+            return adUnits.FirstOrDefault(ad =>
+                ad.formatId == formatId && ad.networkId == networkId && ad.isActive && ad.IsValid());
         }
 
         /// <summary>
@@ -106,5 +104,54 @@ namespace GameDevToi.ThirdLib
                 .OrderByDescending(ad => ad.priority)
                 .ToList();
         }
+
+        #region Editor Methods
+
+        public void SetAllAdUnitsActive(bool isActive)
+        {
+            if (adUnits == null) return;
+
+            foreach (var ad in adUnits)
+            {
+                if (ad == null) continue;
+                ad.isActive = isActive;
+            }
+
+
+#if UNITY_EDITOR
+            EditorUtility.SetDirty(this);
+#endif
+        }
+
+        #endregion
     }
+
+#if UNITY_EDITOR
+    [CustomEditor(typeof(ThirdLibConfig))]
+    public class ThirdLibConfigEditor : Editor
+    {
+        public override void OnInspectorGUI()
+        {
+            DrawDefaultInspector();
+
+            var config = (ThirdLibConfig)target;
+
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Ad Units Tools", EditorStyles.boldLabel);
+
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("Activate All"))
+            {
+                config.SetAllAdUnitsActive(true);
+            }
+
+            if (GUILayout.Button("Deactivate All"))
+            {
+                config.SetAllAdUnitsActive(false);
+            }
+
+            EditorGUILayout.EndHorizontal();
+        }
+    }
+#endif
 }
