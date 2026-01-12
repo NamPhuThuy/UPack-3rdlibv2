@@ -6,5 +6,9 @@ namespace GameDevToi.ThirdLib.AdModule
         public const string APPLOVIN_INTERSTITIAL_FORMAT_ID = "interstitial";
         public const string APPLOVIN_REWARDED_FORMAT_ID = "rewarded";
         public const string APPLOVIN_APP_OPEN_FORMAT_ID = "appopen";
+        
+        
+        public static int LEVEL_START_SHOW_INTER = 5;
+        public static float INTER_TIME_BETWEEN_ADS = 30f;
     }
 }

@@ -1,9 +1,11 @@
+using System;
 using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using GameDevToi.ThirdLib.Core;
 using GameDevToi.ThirdLib.AdModule;
+using MoreMountains.Tools;
 
 namespace GameDevToi.ThirdLib
 {
@@ -12,7 +14,7 @@ namespace GameDevToi.ThirdLib
     /// Tự động khởi tạo khi game start
     /// Sử dụng string-based IDs để có thể mở rộng động
     /// </summary>
-    public class AdBridge : MonoBehaviour
+    public partial class AdBridge : MonoBehaviour
     {
         private static AdBridge instance;
         private static readonly object lockObject = new object();
@@ -62,11 +64,19 @@ namespace GameDevToi.ThirdLib
                 Destroy(gameObject);
                 return;
             }
+            
+            // External
+            MMEventManager.RegistCurrentEvents(this);
 
             instance = this;
             DontDestroyOnLoad(gameObject);
 
             await InitializeAsync();
+        }
+
+        private void OnDestroy()
+        {
+            MMEventManager.UnregistCurrentEvents(this);
         }
 
         private void OnApplicationQuit()
@@ -75,6 +85,8 @@ namespace GameDevToi.ThirdLib
         }
 
         #endregion
+
+        #region Initialization
 
         /// <summary>
         /// Khởi tạo AdBridge và các module
@@ -116,11 +128,11 @@ namespace GameDevToi.ThirdLib
         private void RegisterBuiltInModules()
         {
             // Tìm tất cả các class implement IAdNetworkModule trong assembly hiện tại
-            var moduleTypes = System.AppDomain.CurrentDomain.GetAssemblies()
+            var moduleTypes = AppDomain.CurrentDomain.GetAssemblies()
                 .SelectMany(assembly => assembly.GetTypes())
                 .Where(type => !type.IsAbstract && !type.IsInterface &&
-                              typeof(IAdNetworkModule).IsAssignableFrom(type) &&
-                              type != typeof(BaseAdNetworkModule))
+                               typeof(IAdNetworkModule).IsAssignableFrom(type) &&
+                               type != typeof(BaseAdNetworkModule))
                 .ToList();
 
             Debug.Log($"[AdBridge] Found {moduleTypes.Count} ad network module types");
@@ -130,13 +142,13 @@ namespace GameDevToi.ThirdLib
                 try
                 {
                     // Tạo instance của module
-                    var module = System.Activator.CreateInstance(moduleType) as IAdNetworkModule;
+                    var module = Activator.CreateInstance(moduleType) as IAdNetworkModule;
                     if (module != null)
                     {
                         RegisterAdModule(module);
                     }
                 }
-                catch (System.Exception ex)
+                catch (Exception ex)
                 {
                     Debug.LogWarning($"[AdBridge] Failed to create instance of {moduleType.Name}: {ex.Message}");
                 }
@@ -258,6 +270,10 @@ namespace GameDevToi.ThirdLib
             return null;
         }
 
+       
+
+        #endregion
+
         /// <summary>
         /// Hiển thị quảng cáo theo format (tự động chọn network theo priority)
         /// </summary>
@@ -342,6 +358,8 @@ namespace GameDevToi.ThirdLib
             InitializeRequiredModulesAsync();
         }
 
+        #region Banner Ads
+
         /// <summary>
         /// Ẩn banner (chỉ áp dụng cho banner ads)
         /// </summary>
@@ -395,6 +413,8 @@ namespace GameDevToi.ThirdLib
                 Debug.LogWarning("[AdBridge] No active banner ad units found");
             }
         }
+
+        #endregion
 
         /// <summary>
         /// Lấy thông tin debug
